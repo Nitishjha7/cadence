@@ -2,13 +2,13 @@
 Derived status — docs/TEST_PLAN.md §2.
 
 A task is blocked if any dependency is not done. Never stored, never set by
-a user, never updated by a signal — the property in core.models.Task simply
+a user, never updated by a signal — the property in tasks.models.Task simply
 computes a different answer on the next read.
 """
 
 import pytest
 
-from core.models import Task, TaskDependency
+from tasks.models import Task, TaskDependency
 from tests.factories import ProjectFactory, TaskFactory
 
 pytestmark = pytest.mark.django_db

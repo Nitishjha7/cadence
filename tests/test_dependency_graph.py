@@ -13,7 +13,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.forms import modelform_factory
 
-from core.models import Task, TaskDependency
+from tasks.models import Task, TaskDependency
 from tests.factories import ProjectFactory, TaskDependencyFactory, TaskFactory
 
 pytestmark = pytest.mark.django_db
@@ -219,7 +219,7 @@ def test_duplicate_edge_is_rejected():
 def graph_contains_cycle(tasks):
     """
     Independent cycle checker (plain DFS over dicts), deliberately not
-    sharing code with core.graph.would_create_cycle — asserting with the
+    sharing code with tasks.services.would_create_cycle — asserting with the
     same function under test would only prove it agrees with itself.
     """
     edges = {t.pk: set() for t in tasks}

@@ -29,7 +29,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_htmx",
     "django_celery_beat",
-    "core",
+    "projects",
+    "tasks",
+    "sprints",
 ]
 
 MIDDLEWARE = [

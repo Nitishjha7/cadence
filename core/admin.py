@@ -1,8 +1,9 @@
 from django.contrib import admin
 
-from core.models import Member, Project, Sprint, Task
+from core.models import Member, Project, Sprint, Task, TaskDependency
 
 admin.site.register(Project)
 admin.site.register(Member)
 admin.site.register(Sprint)
 admin.site.register(Task)
+admin.site.register(TaskDependency)

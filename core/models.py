@@ -91,3 +91,45 @@ class Task(models.Model):
     @property
     def key(self):
         return f"{self.project.key}-{self.number}"
+
+    @property
+    def is_blocked(self):
+        """A task is blocked if any dependency is not done. Derived, never stored."""
+        return self.dependencies.exclude(depends_on__state=Task.State.DONE).exists()
+
+
+class TaskDependency(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="dependencies")
+    depends_on = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="dependents")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["task", "depends_on"], name="unique_task_dependency_edge"),
+            models.CheckConstraint(
+                check=~models.Q(task=models.F("depends_on")),
+                name="task_cannot_depend_on_itself",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.task.key} depends on {self.depends_on.key}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        from core.graph import would_create_cycle
+
+        if self.task_id == self.depends_on_id:
+            raise ValidationError("A task cannot depend on itself.")
+
+        cycle_path = would_create_cycle(self.task, self.depends_on)
+        if cycle_path is not None:
+            path_str = " -> ".join(f"{t.key} ({t.title})" for t in cycle_path)
+            raise ValidationError(
+                f"Circular dependency:\n  {path_str}\nNeither task could ever start."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

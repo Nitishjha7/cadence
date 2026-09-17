@@ -5,9 +5,10 @@ why each piece looks the way it does. [DECISIONS.md](../DECISIONS.md) is the
 terse log of individual choices; this is the connected story — read this
 first, then dip into DECISIONS.md for the reasoning behind any one line.
 
-Status as of this writing: **Phase 1 (Foundation) and the core of Phase 2
-(dependency graph) are done.** Capacity, sprints/burndown, UI and deployment
-are not built yet — see [BUILD_PLAN.md](BUILD_PLAN.md) for what is left.
+Status as of this writing: **Phase 1 (Foundation), Phase 2 (dependency
+graph) and the arithmetic half of Phase 3 (capacity) are done.** Sprint
+start/snapshot, burndown, UI and deployment are not built yet — see
+[BUILD_PLAN.md](BUILD_PLAN.md) for what is left.
 
 ---
 
@@ -30,19 +31,21 @@ tasks/                     What needs doing, and the dependency graph
 
 sprints/                   Planning windows, capacity, burndown
 ├── models.py                Sprint, SprintCommitment, Capacity, TimeOff, WorkLog
+├── services.py               capacity_for(), allocated_hours_for(), is_over_allocated()
 └── admin.py
 
 tests/
 ├── factories.py             factory_boy factories for every model
 ├── test_smoke.py             1 test — the app boots and a Task can be made
 ├── test_dependency_graph.py  17 tests — cycle detection (TEST_PLAN.md §1)
-└── test_blocking.py          7 tests — derived is_blocked (TEST_PLAN.md §2)
+├── test_blocking.py          7 tests — derived is_blocked (TEST_PLAN.md §2)
+└── test_capacity.py          14 tests — capacity arithmetic, time off, allocation (TEST_PLAN.md §3)
 
 docker-compose.yml          postgres, redis, web, worker, beat — 5 services
 Dockerfile                  python:3.12-slim, requirements-dev installed
 ```
 
-**25 tests, all green.** `docker compose up` brings up all five services;
+**39 tests, all green.** `docker compose up` brings up all five services;
 `migrate` runs clean; the admin lists all nine models across the three apps.
 
 ---
@@ -176,6 +179,35 @@ the entire point of deriving it instead of storing it — see
 [TECHNICAL_SPEC.md](TECHNICAL_SPEC.md) §3 for the "why not store it"
 reasoning in full.
 
+### Step 5 — Capacity arithmetic, same services.py pattern as tasks
+
+[sprints/services.py](../sprints/services.py) holds three functions:
+`capacity_for(member, sprint)`, `allocated_hours_for(member, sprint)`, and
+`is_over_allocated(member, sprint)`. None of them touch the database beyond
+reading — nothing here is stored yet, because storing capacity only makes
+sense as a snapshot taken at sprint start (Phase 4), and there's no
+`Sprint.start()` yet to take it.
+
+The one part of the formula worth reading closely is
+`timeoff_hours_for()`: it doesn't just count the days in a `TimeOff` range,
+it clips that range to the sprint window first (`max(starts)`/`min(ends)`)
+and then counts only weekdays inside the clipped range. That clip is what
+makes `test_timeoff_partially_overlapping_the_sprint_reduces_only_the_overlap`
+pass — leave that starts before the sprint and ends inside it should only
+cost the days actually inside the sprint. The weekday-only counting is what
+makes `test_weekend_inside_a_leave_range_does_not_reduce_capacity` pass — a
+Saturday inside someone's leave was never sprint capacity to begin with.
+
+`is_over_allocated` returns a plain boolean, and nothing in the codebase
+stops a task from being assigned once it's `True` — per
+[TECHNICAL_SPEC.md](TECHNICAL_SPEC.md) §4, over-allocation is meant to warn,
+never block, and there's no save-time check anywhere that would prevent it.
+
+One test from [TEST_PLAN.md](TEST_PLAN.md) §3 was skipped for the same
+reason as the blocking-state test in Step 3:
+`test_capacity_is_frozen_at_sprint_start` needs `Sprint.start()` to exist,
+which is Phase 4, not Phase 3.
+
 ---
 
 ## 3. How to see it work right now
@@ -217,9 +249,10 @@ In build order, per [BUILD_PLAN.md](BUILD_PLAN.md):
 - **Finish Phase 2** — nothing structural left; the one skipped test
   (state-transition guard on blocked tasks) can be picked up whenever
   that enforcement is designed.
-- **Phase 3 — Capacity** — `capacity_for(member, sprint)` and allocation
-  arithmetic in `sprints/services.py`, following the same
-  models-thin/services-fat pattern established in `tasks`.
+- **Finish Phase 3** — the arithmetic (`capacity_for`, `allocated_hours_for`,
+  `is_over_allocated`) is done and tested. What's left is freezing it: a
+  stored `Capacity` row per member per sprint, written once at sprint start
+  — which needs `Sprint.start()` from Phase 4 to exist first.
 - **Phase 4 — Sprints, snapshot, burndown** — `Sprint.start()` as one
   transaction, scope creep as the absence of a `SprintCommitment` row,
   nightly `WorkLog` writes via Celery beat (already wired, not yet used).

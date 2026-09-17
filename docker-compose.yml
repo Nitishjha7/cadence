@@ -17,8 +17,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    # No host port mapping — only web/worker/beat talk to it, over the
+    # compose network, and this project's ports are already offset to avoid
+    # clashing with other projects running locally (see docs/SETUP.md).
 
   web:
     build: .

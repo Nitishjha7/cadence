@@ -6,10 +6,13 @@
 
 </div>
 
-> **Status: not built yet.** This repository currently contains the specification
-> and build plan only. Everything below describes what is *intended*, not what
-> exists. This README will be rewritten with real screenshots and real numbers
-> once the code lands — and it will not claim anything the code does not do.
+> **Status: in progress.** Foundation and the dependency-graph core
+> ([Phases 1–2](docs/BUILD_PLAN.md)) are built and tested — see
+> [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md) for what exists
+> right now. Capacity, sprints/burndown, UI and deployment are not built yet.
+> Everything below still describes the full *intended* scope. This README
+> will be rewritten with real screenshots and real numbers once the UI
+> lands — and it will not claim anything the code does not do before then.
 
 ---
 
@@ -96,6 +99,7 @@ fiction.
 
 | Doc | What is in it |
 |---|---|
+| [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md) | What is actually built so far, in the order it was built, and why — start here |
 | [docs/TECHNICAL_SPEC.md](docs/TECHNICAL_SPEC.md) | Schema, cycle detection algorithm, capacity model, sprint snapshot |
 | [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) | Six phases, in build order, with what "done" means for each |
 | [docs/TEST_PLAN.md](docs/TEST_PLAN.md) | Every test to write, grouped, with the graph cases spelled out |

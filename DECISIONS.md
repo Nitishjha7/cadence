@@ -56,6 +56,32 @@ about the cycle rejection and the capacity arithmetic, not the cards.
 
 ---
 
+## 2026-09-17 — One `core` app first, then split into `projects` / `tasks` / `sprints`
+
+All nine models were built inside a single `core` app first, to get the
+schema and constraints right without also juggling app boundaries. Once
+migrations were clean and the first tests passed, the project was
+restructured into three domain apps — `projects`, `tasks`, `sprints` — each
+with its own `models.py`, `admin.py`, and (for `tasks`) `services.py` for
+business logic that isn't just fields.
+
+Rejected: keeping `core` as-is. Nine models is genuinely small enough that
+one app would work, but it doesn't demonstrate how this project would be
+organized if it grew, and the split is nearly free — Django's migrations
+handle the one circular FK (`tasks.Task.sprint` needs `sprints.Sprint`;
+`sprints.SprintCommitment`/`WorkLog` need `tasks.Task`) automatically by
+splitting `sprints`'s initial migration into two files, applied around
+`tasks.0001_initial`.
+
+Cost: string-based FK references (`"sprints.Sprint"`, `"tasks.Task"`)
+instead of direct imports across the two apps, and slightly more
+boilerplate (three `admin.py`/`apps.py` pairs instead of one). Also moved
+`would_create_cycle` out of the model file into `tasks/services.py` at the
+same time — same algorithm, no behaviour change, just kept the model file
+from growing a graph algorithm inside it.
+
+---
+
 ## Entries from here are written as the code is built
 
 Things that will need an entry:

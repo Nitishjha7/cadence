@@ -3,9 +3,12 @@
 Goal: **one public URL** in the README that an interviewer can click, log in as
 any of the three roles, and use — without installing anything.
 
-> Nothing is deployed yet. This is written ahead of Phase 6 so the decisions are
-> made before the pressure of "just get it online". It will be corrected against
-> reality once the first deploy happens.
+> The application is built and tested (Phases 1-5 — see
+> [PROJECT_WALKTHROUGH.md](PROJECT_WALKTHROUGH.md)); nothing below has been
+> deployed yet. This was written ahead of Phase 6 so the decisions are made
+> before the pressure of "just get it online". It will be corrected against
+> reality once the first deploy happens — the steps below are what to
+> actually follow, not a plan to re-derive.
 
 ---
 
@@ -111,12 +114,14 @@ CSRF_TRUSTED_ORIGINS=https://cadence.up.railway.app
 
 DATABASE_URL=postgresql://...?sslmode=require
 CELERY_BROKER_URL=${{Redis.REDIS_URL}}
-
-DJANGO_SETTINGS_MODULE=cadence.settings.production
-SECURE_SSL_REDIRECT=1
-SESSION_COOKIE_SECURE=1
-CSRF_COOKIE_SECURE=1
 ```
+
+There is one `cadence/settings.py`, not a `settings.production` module —
+`SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` and
+HSTS all turn on **automatically** the moment `DEBUG=0`, no separate flags
+to set (see the `if not DEBUG:` block at the end of that file, and
+DECISIONS.md for why one file was chosen over a settings package). Only
+override them if a specific value needs to differ from the default.
 
 **`DEBUG=0` matters most.** Django's debug page prints settings and a full
 traceback on any unhandled exception. On a public URL that is an information leak,

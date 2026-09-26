@@ -215,7 +215,20 @@ class Command(BaseCommand):
     def _start_and_populate_active_sprint(self, project, sprint):
         sprint.start(now=self._as_datetime(sprint.starts_on))
 
+        # A few tasks finish across days 0-7, so the burndown actually
+        # trends down before the scope-creep step — a flat line followed
+        # by one jump wouldn't look like a real sprint.
+        finish_schedule = {
+            2: [26, 33],        # Update API docs, misc (5h)
+            4: [12, 25, 10],    # Refund flow, onboarding docs, Card form validation (13h)
+            6: [27, 11],        # misc, Card form error states (13h)
+        }
+
         for offset in range(8):  # days 0-7: before scope creep
+            for number in finish_schedule.get(offset, []):
+                task = Task.objects.get(project=project, number=number)
+                task.state = Task.State.DONE
+                task.save(update_fields=["state"])
             write_daily_worklogs(sprint, as_of=sprint.starts_on + timedelta(days=offset))
 
         # Scope creep: two tasks added on day 8, after the sprint already

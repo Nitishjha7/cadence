@@ -3,7 +3,7 @@ Capacity arithmetic and sprint lifecycle — kept out of models.py so it stays
 independently testable and the models themselves stay thin records of
 fields.
 
-See docs/TECHNICAL_SPEC.md §4 and §5 for the full write-up.
+See docs/architecture.md for the full write-up.
 """
 
 from datetime import timedelta
@@ -70,7 +70,7 @@ def allocated_hours_for(member, sprint):
     Sum of estimate_hours for tasks assigned to this member, in this
     sprint, that are not yet done. Unestimated tasks count as zero — the
     caller is responsible for surfacing the unestimated count separately
-    (docs/TECHNICAL_SPEC.md §4); silently defaulting to some other number
+    (docs/architecture.md); silently defaulting to some other number
     would invent data.
     """
     from tasks.models import Task
@@ -96,14 +96,14 @@ def unestimated_task_count_for(member, sprint):
 
 def is_over_allocated(member, sprint):
     """
-    Flags, never blocks — docs/TECHNICAL_SPEC.md §4. Managers legitimately
+    Flags, never blocks — docs/architecture.md. Managers legitimately
     overload people; this is information, not a gate.
     """
     return allocated_hours_for(member, sprint) > capacity_for(member, sprint)
 
 
 # ---------------------------------------------------------------------------
-# Sprint lifecycle — docs/TECHNICAL_SPEC.md §5
+# Sprint lifecycle — docs/architecture.md
 # ---------------------------------------------------------------------------
 
 
@@ -155,7 +155,7 @@ def add_task_to_sprint(sprint, task):
     """
     Add a task to an already-active sprint. No SprintCommitment row is
     written — that absence *is* the scope-creep marker
-    (docs/TECHNICAL_SPEC.md §5), not a separate flag.
+    (docs/architecture.md), not a separate flag.
     """
     task.sprint = sprint
     task.save(update_fields=["sprint"])
@@ -195,7 +195,7 @@ def write_daily_worklogs(sprint, *, as_of=None):
     source for the burndown.
 
     Unestimated tasks are treated as zero remaining, consistent with how
-    they're treated everywhere else (docs/TECHNICAL_SPEC.md §4).
+    they're treated everywhere else (docs/architecture.md).
     """
     from tasks.models import Task
     from sprints.models import WorkLog

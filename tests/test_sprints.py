@@ -1,5 +1,5 @@
 """
-Sprints and scope — docs/TEST_PLAN.md §4.
+Sprints and scope — docs/testing.md.
 
 Starting a sprint freezes scope (SprintCommitment + Capacity, in one
 transaction). Scope creep is the absence of a commitment row, not a flag.

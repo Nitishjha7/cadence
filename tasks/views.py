@@ -9,11 +9,11 @@ from tasks.models import Task, TaskDependency
 
 class BoardView(ProjectPermissionMixin, TemplateView):
     """
-    Screen 1 — docs/UI_FLOW.md §1. Tasks grouped by state, blocked tasks
+    Screen 1 — docs/architecture.md. Tasks grouped by state, blocked tasks
     greyed with what blocks them named.
 
     prefetch_related('dependencies__depends_on') is what keeps is_blocked
-    from issuing a query per task — see docs/TECHNICAL_SPEC.md §3 and
+    from issuing a query per task — see docs/architecture.md and
     tests/test_queries.py, which pins the query count directly.
     """
 
@@ -36,7 +36,7 @@ class BoardView(ProjectPermissionMixin, TemplateView):
 
 
 class TaskDetailView(ProjectPermissionMixin, DetailView):
-    """Screen 2 — docs/UI_FLOW.md §2. Dependencies in both directions."""
+    """Screen 2 — docs/architecture.md. Dependencies in both directions."""
 
     model = Task
     template_name = "tasks/task_detail.html"
@@ -84,7 +84,7 @@ class TaskStateChangeView(ProjectPermissionMixin, View):
 
 class AddDependencyView(ProjectPermissionMixin, DetailView):
     """
-    Screen 3 — docs/UI_FLOW.md §3, the most important interaction in the
+    Screen 3 — docs/architecture.md, the most important interaction in the
     application. An inline HTMX form on the task detail page; on success it
     swaps in the updated dependency list, on cycle rejection it swaps in
     the error box naming the actual path.

@@ -1,8 +1,8 @@
 """
-Query counts — docs/TEST_PLAN.md §6.
+Query counts — docs/testing.md.
 
 Derived is_blocked makes N+1 the natural failure mode
-(docs/TECHNICAL_SPEC.md §3). These tests are what stop it returning
+(docs/architecture.md). These tests are what stop it returning
 silently: they assert the board and capacity views run in a constant
 number of queries, independent of how many tasks or members exist.
 """

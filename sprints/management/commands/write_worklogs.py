@@ -7,7 +7,7 @@ class Command(BaseCommand):
     help = (
         "Write today's WorkLog row for every unfinished task in every active "
         "sprint. Normally runs nightly via Celery beat; this lets it be run "
-        "by hand for demos (see docs/SETUP.md)."
+        "by hand for demos (see docs/setup.md)."
     )
 
     def handle(self, *args, **options):

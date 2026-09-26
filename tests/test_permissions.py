@@ -1,5 +1,5 @@
 """
-Permissions — docs/TEST_PLAN.md §5.
+Permissions — docs/testing.md.
 
 Object-level checks live in projects/permissions.py and are wired into
 every view via ProjectPermissionMixin, not scattered `if` statements.

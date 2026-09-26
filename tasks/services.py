@@ -2,7 +2,7 @@
 Business logic for tasks — kept out of models.py so it stays independently
 testable and the model itself stays a thin record of fields.
 
-See docs/TECHNICAL_SPEC.md §2 for the full write-up.
+See docs/architecture.md for the full write-up.
 """
 
 

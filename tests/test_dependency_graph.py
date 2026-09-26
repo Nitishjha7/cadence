@@ -1,5 +1,5 @@
 """
-Cycle detection — docs/TEST_PLAN.md §1.
+Cycle detection — docs/testing.md.
 
 No HTTP, no views. Build a graph, attempt an edge, assert.
 

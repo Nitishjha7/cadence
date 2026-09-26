@@ -13,14 +13,14 @@ from sprints.services import SprintAlreadyStartedError, velocity
 
 class CapacityView(ProjectPermissionMixin, DetailView):
     """
-    Screen 4 — docs/UI_FLOW.md §4. Load bars, leave, over-allocation.
+    Screen 4 — docs/architecture.md. Load bars, leave, over-allocation.
     Uses the *frozen* Capacity row if the sprint has started (so numbers
     match what was committed to), falling back to a live calculation for a
     sprint still being planned.
 
     Deliberately does not call sprints.services' per-member functions in a
     loop here — each of those runs its own query, which would reintroduce
-    the N+1 this view exists to avoid (docs/TECHNICAL_SPEC.md §3's
+    the N+1 this view exists to avoid (docs/architecture.md's
     "prefetch or it's an N+1" lesson applies just as much to capacity as to
     is_blocked). Instead everything is fetched in a handful of queries up
     front and matched up in Python — see tests/test_queries.py.
@@ -85,7 +85,7 @@ class CapacityView(ProjectPermissionMixin, DetailView):
 
 
 class SprintDetailView(ProjectPermissionMixin, DetailView):
-    """Screen 5 — docs/UI_FLOW.md §5. Sprint + burndown, scope creep visible."""
+    """Screen 5 — docs/architecture.md. Sprint + burndown, scope creep visible."""
 
     model = Sprint
     pk_url_kwarg = "sprint_pk"
@@ -114,7 +114,7 @@ class SprintDetailView(ProjectPermissionMixin, DetailView):
 
 
 class SprintStartView(ProjectPermissionMixin, View):
-    """Manager-only transition planned -> active. docs/TECHNICAL_SPEC.md §5."""
+    """Manager-only transition planned -> active. docs/architecture.md."""
 
     required_role = "manage"
 

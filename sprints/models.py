@@ -78,7 +78,7 @@ class SprintCommitment(models.Model):
 
 
 class Capacity(models.Model):
-    """Computed at sprint start, stored. See docs/TECHNICAL_SPEC.md §4."""
+    """Computed at sprint start, stored. See docs/architecture.md."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="capacities")

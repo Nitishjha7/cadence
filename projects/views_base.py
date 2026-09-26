@@ -2,7 +2,7 @@
 The permission mixin every view in this project uses. A new view that
 forgets to inherit from ProjectPermissionMixin fails
 tests/test_permissions.py::test_every_view_uses_the_permission_mixin
-rather than silently shipping unprotected — see docs/TECHNICAL_SPEC.md §6.
+rather than silently shipping unprotected — see docs/architecture.md.
 """
 
 from django.contrib.auth.mixins import LoginRequiredMixin

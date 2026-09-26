@@ -1,5 +1,5 @@
 """
-Derived status — docs/TEST_PLAN.md §2.
+Derived status — docs/testing.md.
 
 A task is blocked if any dependency is not done. Never stored, never set by
 a user, never updated by a signal — the property in tasks.models.Task simply

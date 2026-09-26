@@ -1,5 +1,5 @@
 """
-Capacity — docs/TEST_PLAN.md §3.
+Capacity — docs/testing.md.
 
 available_hours = weekly_hours * (sprint_days / 7) - timeoff_hours
 allocated_hours = sum(estimate_hours for assigned, unfinished tasks)

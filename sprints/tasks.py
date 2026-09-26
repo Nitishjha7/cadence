@@ -9,7 +9,7 @@ def write_daily_worklogs_for_active_sprints():
     Run nightly via Celery beat. Writes today's WorkLog row for every
     unfinished task in every currently-active sprint across all projects.
     See sprints.services.write_daily_worklogs for the per-sprint logic and
-    docs/TECHNICAL_SPEC.md §5 for why this can't be reconstructed later.
+    docs/architecture.md for why this can't be reconstructed later.
     """
     from sprints.models import Sprint
     from sprints.services import write_daily_worklogs

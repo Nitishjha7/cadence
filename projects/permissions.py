@@ -2,7 +2,7 @@
 Object-level permission checks, used by the mixin in every view
 (projects/views_base.py) rather than scattered `if` statements.
 
-docs/TECHNICAL_SPEC.md §6:
+Three roles (see docs/architecture.md):
   viewer       — read everything in their projects
   contributor  — create/edit tasks, change state, add dependencies
   manager      — all of the above, plus start/complete sprints, manage members

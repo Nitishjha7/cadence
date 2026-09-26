@@ -22,5 +22,5 @@ htmlcov/
 
 .DS_Store
 
-# My own working notes — interview prep, pitch, anticipated questions. Not for the public repo.
+# My own working notes — build log, decisions, deployment runbook, demo script. Not for the public repo.
 .notes/

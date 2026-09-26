@@ -82,7 +82,7 @@ DATABASES = {
         "PASSWORD": _db_url.password,
         "HOST": _db_url.hostname,
         "PORT": _db_url.port,
-        # Neon (docs/DEPLOYMENT.md) requires SSL; local Postgres in
+        # Neon (the planned deploy target) requires SSL; local Postgres in
         # docker-compose doesn't care either way, so this is safe everywhere.
         "OPTIONS": {"sslmode": "require"} if "sslmode=require" in config("DATABASE_URL") else {},
     }
@@ -131,7 +131,7 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 
 # The nightly burndown snapshot — see sprints/tasks.py and
-# docs/TECHNICAL_SPEC.md §5. django_celery_beat is installed but not used as
+# docs/architecture.md. django_celery_beat is installed but not used as
 # the scheduler here; a static crontab is simpler for the one recurring job
 # this project has.
 CELERY_BEAT_SCHEDULE = {
@@ -144,7 +144,7 @@ CELERY_BEAT_SCHEDULE = {
 
 # Production hardening — active whenever DEBUG=0. One file with a
 # DEBUG-gated block instead of a separate settings module, since there's
-# only one deploy target here (see DECISIONS.md).
+# only one deploy target here.
 if not DEBUG:
     SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
     SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=True, cast=bool)

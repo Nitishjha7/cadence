@@ -1,8 +1,7 @@
 """
-seed_demo — docs/UI_FLOW.md's seed data specification.
+seed_demo — builds a full demo project, not a minimal fixture.
 
-This is not a fixture, it is the demo (per that doc). Every requirement in
-its table is built here on purpose, not incidentally:
+Every requirement below is built here on purpose, not incidentally:
 
   1 project, ~45 tasks             -- the board looks worked-in
   3 sprints: 2 completed, 1 active -- velocity needs history
@@ -16,11 +15,10 @@ its table is built here on purpose, not incidentally:
   scope creep in the active sprint -- 2 tasks added day 8, worklogs before/after
   daily worklogs across the sprint -- burndown needs real daily rows
 
-Task numbers below deliberately match the worked examples in
-docs/UI_FLOW.md and docs/DEMO_SCRIPT.md (CAD-3 API keys, CAD-7 Payment
-gateway, CAD-14 Webhook retry, CAD-18 Settlement) so the running app reads
-the same as the docs. After any change here, re-run and confirm clicking
-"Add dependency" on CAD-3 -> CAD-7 still rejects.
+Task numbers below are fixed on purpose (CAD-3 API keys, CAD-7 Payment
+gateway, CAD-14 Webhook retry, CAD-18 Settlement), so the cycle-rejection
+demo always reproduces the same way. After any change here, re-run and
+confirm clicking "Add dependency" on CAD-3 -> CAD-7 still rejects.
 """
 
 from datetime import date, timedelta
@@ -83,9 +81,9 @@ class Command(BaseCommand):
                 username=email, defaults={"email": email, "first_name": first, "last_name": last}
             )
             user.set_password("password")
-            # Django admin is manager-only and is the back-office console
-            # (docs/TECHNICAL_SPEC.md §6) — is_staff is what actually lets
-            # someone log into /admin/, so managers need it set explicitly.
+            # Django admin is manager-only and is the back-office console —
+            # is_staff is what actually lets someone log into /admin/, so
+            # managers need it set explicitly.
             user.is_staff = role == Member.Role.MANAGER
             user.save()
             members[email] = Member.objects.create(
@@ -118,7 +116,7 @@ class Command(BaseCommand):
 
         T(1, "Project scaffolding", estimate=Decimal(3), state=Task.State.DONE, assignee=manager)
         T(2, "Sprint planning", estimate=Decimal(2), state=Task.State.DONE, assignee=manager)
-        # CAD-3/CAD-7: the fixed cycle-demo pair (docs/DEMO_SCRIPT.md).
+        # CAD-3/CAD-7: the fixed cycle-demo pair.
         T(3, "API keys", estimate=Decimal(3), state=Task.State.DONE, assignee=manager)
         T(4, "Design review", estimate=Decimal(2), state=Task.State.DONE, assignee=priya)
         T(5, "DB schema", estimate=Decimal(5), state=Task.State.DONE, assignee=amit)

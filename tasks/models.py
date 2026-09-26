@@ -49,7 +49,7 @@ class Task(models.Model):
     def is_blocked(self):
         """
         A task is blocked if any dependency is not done. Derived, never
-        stored — see docs/TECHNICAL_SPEC.md §3.
+        stored — see docs/architecture.md.
 
         If `dependencies__depends_on` was prefetched, reuse that cache
         instead of issuing `.exclude().exists()`, which would otherwise

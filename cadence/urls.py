@@ -1,8 +1,8 @@
 """
 URL configuration for cadence project.
 
-The five screens (docs/UI_FLOW.md) live under projects/tasks/sprints, each
-app owning its own urls.py.
+The five screens live under projects/tasks/sprints, each app owning its
+own urls.py.
 """
 
 from django.contrib import admin

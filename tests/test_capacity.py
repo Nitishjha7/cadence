@@ -12,6 +12,7 @@ from decimal import Decimal
 
 import pytest
 
+from sprints.models import Capacity
 from sprints.services import (
     allocated_hours_for,
     capacity_for,
@@ -179,3 +180,22 @@ def test_sprint_over_capacity_is_flagged():
     total_allocated = sum(allocated_hours_for(m, s) for m in project_members)
     assert total_allocated == Decimal(200)
     assert total_allocated > total_capacity
+
+
+def test_capacity_is_frozen_at_sprint_start():
+    # Booking leave *after* the sprint starts must not rewrite the snapshot
+    # taken at start — Sprint.start() (Phase 4) is what makes this testable.
+    m = MemberFactory(weekly_hours=40)
+    s = SprintFactory(project=m.project, starts_on=date(2026, 9, 1), ends_on=date(2026, 9, 14))
+
+    s.start()
+    frozen = Capacity.objects.get(sprint=s, member=m).available_hours
+    assert frozen == Decimal(80)
+
+    TimeOffFactory(member=m, starts_on=date(2026, 9, 8), ends_on=date(2026, 9, 9))
+
+    # The live calculation now reflects the new leave...
+    assert capacity_for(m, s) == Decimal(80) - Decimal(16)
+    # ...but the frozen snapshot from sprint start does not.
+    still_frozen = Capacity.objects.get(sprint=s, member=m).available_hours
+    assert still_frozen == Decimal(80)

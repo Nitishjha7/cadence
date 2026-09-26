@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ sprint.name }} capacity — Cadence{% endblock %}
+{% block content %}
+<div class="bg-white rounded shadow p-5 mb-4">
+    <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold">{{ sprint.name }} capacity</h1>
+        <span class="text-sm text-gray-500">{{ sprint.starts_on }} – {{ sprint.ends_on }}</span>
+    </div>
+    {% if team_available is not None %}
+    <p class="mt-2">
+        Team: <strong>{{ team_allocated }}h</strong> allocated / <strong>{{ team_available }}h</strong> available
+        {% if team_allocated > team_available %}
+        <span class="text-amber-700 font-medium">&#9888; over capacity</span>
+        {% endif %}
+    </p>
+    {% else %}
+    <p class="mt-2 text-sm text-gray-500">This sprint has not started. Capacity appears once it does.</p>
+    {% endif %}
+</div>
+
+<div class="bg-white rounded shadow divide-y">
+    {% for row in rows %}
+    <div class="p-4">
+        <div class="flex items-center justify-between">
+            <span class="font-medium">{{ row.member.user.get_username }}</span>
+            <span class="text-sm">
+                {{ row.allocated }}h {% if row.available is not None %}/ {{ row.available }}h{% endif %}
+                {% if row.over_allocated %}<span class="text-amber-700 font-medium ml-1">&#9888; over</span>{% endif %}
+            </span>
+        </div>
+        {% if row.available %}
+        <div class="w-full bg-gray-100 rounded h-3 mt-2 overflow-hidden">
+            {# bar overflows past 100% rather than capping — a capped bar hides how bad the overload is #}
+            <div class="h-3 {% if row.over_allocated %}bg-amber-500{% else %}bg-gray-800{% endif %}"
+                 style="width: {% widthratio row.allocated row.available 100 %}%; max-width: 100%;"></div>
+        </div>
+        {% endif %}
+        {% if row.time_off.exists %}
+        <p class="text-xs text-gray-500 mt-1">
+            {% for t in row.time_off %}on leave {{ t.starts_on }} – {{ t.ends_on }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </p>
+        {% endif %}
+        {% if row.unestimated_count %}
+        <p class="text-xs text-gray-500 mt-1">{{ row.unestimated_count }} task{{ row.unestimated_count|pluralize }} unestimated</p>
+        {% endif %}
+    </div>
+    {% empty %}
+    <p class="p-4 text-sm text-gray-400">No members on this project yet.</p>
+    {% endfor %}
+</div>
+{% endblock %}

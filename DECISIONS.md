@@ -122,6 +122,50 @@ function being safe to call blindly.
 
 ---
 
+## 2026-09-26 — Board's is_blocked N+1 survived prefetch_related — the bug docs/DEPLOYMENT.md predicted
+
+While building Screen 1, `assertNumQueries` caught two bugs prefetch_related
+was supposed to prevent: `Task.is_blocked` called `.exclude().exists()`
+directly, which issues a fresh query regardless of any prefetch cache, and
+the board's `select_related` was missing `project`, so `task.key` (used in
+both the board and the dependency list) lazy-loaded it once per task.
+
+This is, almost word for word, the exact failure DEPLOYMENT.md's
+troubleshooting section warned about before it happened ("the query-count
+test in TEST_PLAN.md §6 should have caught it") — the test was written
+after the bug, not before, which is the wrong order. Chose to fix both, add
+`is_blocked` prefetch-cache reuse (check `_prefetched_objects_cache` before
+falling back to a live query), and write the query-count tests immediately
+after, rather than shipping either without the other.
+
+Rejected: leaving `is_blocked` as a plain query and just prefetching harder.
+There's no `prefetch_related` incantation that stops a property from
+issuing its own query when called — the property itself has to be taught
+to look for cached data first.
+
+Cost: `is_blocked` now has two code paths (prefetched vs. not), which is one
+more thing to keep in sync if the prefetch shape ever changes — the docstring
+points at tests/test_queries.py specifically so a future change gets caught.
+
+---
+
+## 2026-09-26 — Single settings.py with DEBUG-gated blocks, not a settings/ package
+
+docs/DEPLOYMENT.md originally sketched `DJANGO_SETTINGS_MODULE=cadence.settings.production`
+as a separate module. Built it instead as one `cadence/settings.py` with a
+`if not DEBUG:` block at the end adding SSL redirect, secure cookies, and
+HSTS. There is exactly one deploy target for this project (Railway) and no
+staging/prod split — a `settings/base.py` + `settings/production.py` split
+earns its complexity on a project with multiple environments to diverge
+between, and this isn't one.
+
+Rejected: the settings-package split from the original deployment sketch.
+Cost: if a real staging environment is ever added, this gets revisited —
+env-var-gated blocks in one file stop being clearly better once there are
+three or four environments instead of two.
+
+---
+
 ## Entries from here are written as the code is built
 
 Things that will need an entry:

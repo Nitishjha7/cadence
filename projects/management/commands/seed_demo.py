@@ -83,6 +83,10 @@ class Command(BaseCommand):
                 username=email, defaults={"email": email, "first_name": first, "last_name": last}
             )
             user.set_password("password")
+            # Django admin is manager-only and is the back-office console
+            # (docs/TECHNICAL_SPEC.md §6) — is_staff is what actually lets
+            # someone log into /admin/, so managers need it set explicitly.
+            user.is_staff = role == Member.Role.MANAGER
             user.save()
             members[email] = Member.objects.create(
                 user=user, project=project, role=role, weekly_hours=weekly_hours

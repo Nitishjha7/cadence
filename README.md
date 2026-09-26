@@ -15,6 +15,10 @@
 </div>
 
 <p align="center">
+  <img src="docs/images/board.png" alt="Cadence board — blocked tasks greyed, with what blocks them named" width="850">
+</p>
+
+<p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#the-five-screens">Screens</a> ·
@@ -106,6 +110,12 @@ row — rendered as a separate series on the burndown, so a team that takes
 on extra work mid-sprint doesn't look identical to one that planned
 correctly.
 
+<p align="center">
+  <img src="docs/images/burndown.png" alt="Burndown with a visible step where scope was added mid-sprint" width="500">
+</p>
+
+<p align="center"><sub>The burndown above is drawn entirely from daily <code>WorkLog</code> snapshots — the step on the last day is two tasks added after the sprint started, rendered as its own series rather than folded into the line.</sub></p>
+
 A few other decisions worth knowing about:
 
 - **404, not 403, for a non-member.** A user who isn't on a project gets a
@@ -169,6 +179,10 @@ the exact cycle path shown above, live, no shell required.
 Django templates + Tailwind, HTMX for the two places that need a partial
 update (the dependency form, the state selector). No drag-and-drop, no
 animation — the point is what's behind the screen, not the CSS.
+
+<p align="center">
+  <img src="docs/images/capacity.png" alt="Capacity view — load bars, over-allocation, unestimated tasks flagged" width="500">
+</p>
 
 ---
 

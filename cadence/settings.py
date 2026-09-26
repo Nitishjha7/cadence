@@ -121,3 +121,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CELERY_BROKER_URL = config("CELERY_BROKER_URL")
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
+
+# The nightly burndown snapshot — see sprints/tasks.py and
+# docs/TECHNICAL_SPEC.md §5. django_celery_beat is installed but not used as
+# the scheduler here; a static crontab is simpler for the one recurring job
+# this project has.
+CELERY_BEAT_SCHEDULE = {
+    "write-daily-worklogs": {
+        "task": "sprints.tasks.write_daily_worklogs_for_active_sprints",
+        "schedule": 24 * 60 * 60,  # once a day; exact time doesn't matter for a demo
+    },
+}

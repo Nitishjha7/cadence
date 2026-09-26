@@ -47,7 +47,17 @@ class Task(models.Model):
 
     @property
     def is_blocked(self):
-        """A task is blocked if any dependency is not done. Derived, never stored."""
+        """
+        A task is blocked if any dependency is not done. Derived, never
+        stored — see docs/TECHNICAL_SPEC.md §3.
+
+        If `dependencies__depends_on` was prefetched, reuse that cache
+        instead of issuing `.exclude().exists()`, which would otherwise
+        hit the database once per task and quietly reintroduce the N+1 a
+        prefetch is supposed to prevent — see tests/test_queries.py.
+        """
+        if "dependencies" in getattr(self, "_prefetched_objects_cache", {}):
+            return any(dep.depends_on.state != Task.State.DONE for dep in self.dependencies.all())
         return self.dependencies.exclude(depends_on__state=Task.State.DONE).exists()
 
 

@@ -23,8 +23,8 @@ class BoardView(ProjectPermissionMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         tasks = (
             self.project.tasks
-            .select_related("assignee__user")
-            .prefetch_related("dependencies__depends_on")
+            .select_related("project", "assignee__user")
+            .prefetch_related("dependencies__depends_on__project")
         )
         context["columns"] = [
             (Task.State.TODO, tasks.filter(state=Task.State.TODO)),

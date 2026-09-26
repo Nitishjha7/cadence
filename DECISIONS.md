@@ -82,6 +82,46 @@ from growing a graph algorithm inside it.
 
 ---
 
+## 2026-09-26 — Static `CELERY_BEAT_SCHEDULE`, not `django_celery_beat` as the scheduler
+
+`django_celery_beat` is installed (it was in the original requirements list
+for its database-backed periodic task model, useful if schedules ever
+needed to be editable per-project from the admin). For the one recurring
+job this project actually has — the nightly worklog snapshot — a static
+entry in `CELERY_BEAT_SCHEDULE` is simpler: one dict in settings.py, no
+extra migration, no admin UI to maintain for a schedule that never changes.
+
+Rejected: registering the job as a `PeriodicTask` row via
+`django_celery_beat`, which is the "more Django admin, less code" option.
+Not worth it for a single job with a schedule that isn't meant to be
+edited by a non-technical user. The app stays installed since the model is
+harmless to have around and documents the option for later.
+
+Cost: if a second recurring job ever needs a schedule editable at runtime,
+this decision gets revisited — but that's a real trade to make then, not a
+guess to make now.
+
+---
+
+## 2026-09-26 — `start_sprint()` forbids re-starting instead of being idempotent
+
+Calling `.start()` on anything but a `planned` sprint raises
+`SprintAlreadyStartedError` rather than silently no-op'ing or
+re-snapshotting. The alternative — making it idempotent, so calling it
+twice is harmless — sounds safer but isn't: re-running it would recompute
+`Capacity` and re-copy `estimate_hours_at_start` against whatever the
+member's leave and task estimates happen to be *right now*, which is
+exactly the kind of drift the snapshot exists to prevent
+([TECHNICAL_SPEC.md](docs/TECHNICAL_SPEC.md) §5). A loud, specific
+exception is cheaper to debug than a sprint whose committed numbers
+quietly moved between two page loads.
+
+Cost: any caller (a future view, an API) has to catch this exception and
+turn it into a normal "already started" message instead of relying on the
+function being safe to call blindly.
+
+---
+
 ## Entries from here are written as the code is built
 
 Things that will need an entry:

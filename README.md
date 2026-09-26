@@ -6,10 +6,10 @@
 
 </div>
 
-> **Status: in progress.** Foundation and the dependency-graph core
-> ([Phases 1–2](docs/BUILD_PLAN.md)) are built and tested — see
-> [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md) for what exists
-> right now. Capacity, sprints/burndown, UI and deployment are not built yet.
+> **Status: in progress.** The dependency graph, capacity, and sprint
+> start/snapshot/burndown ([Phases 1–4](docs/BUILD_PLAN.md)) are built and
+> tested — see [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md)
+> for what exists right now. UI and deployment are not built yet.
 > Everything below still describes the full *intended* scope. This README
 > will be rewritten with real screenshots and real numbers once the UI
 > lands — and it will not claim anything the code does not do before then.

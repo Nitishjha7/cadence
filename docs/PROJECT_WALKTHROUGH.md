@@ -5,10 +5,10 @@ why each piece looks the way it does. [DECISIONS.md](../DECISIONS.md) is the
 terse log of individual choices; this is the connected story — read this
 first, then dip into DECISIONS.md for the reasoning behind any one line.
 
-Status as of this writing: **Phase 1 (Foundation), Phase 2 (dependency
-graph) and the arithmetic half of Phase 3 (capacity) are done.** Sprint
-start/snapshot, burndown, UI and deployment are not built yet — see
-[BUILD_PLAN.md](BUILD_PLAN.md) for what is left.
+Status as of this writing: **Phases 1-4 are done** — foundation, the
+dependency graph, capacity, and sprint start/snapshot/burndown/velocity.
+UI and deployment are not built yet — see [BUILD_PLAN.md](BUILD_PLAN.md)
+for what is left.
 
 ---
 
@@ -30,8 +30,12 @@ tasks/                     What needs doing, and the dependency graph
 └── admin.py
 
 sprints/                   Planning windows, capacity, burndown
-├── models.py                Sprint, SprintCommitment, Capacity, TimeOff, WorkLog
-├── services.py               capacity_for(), allocated_hours_for(), is_over_allocated()
+├── models.py                Sprint (+ thin start()/add_task() wrappers), SprintCommitment,
+│                             Capacity, TimeOff, WorkLog
+├── services.py               capacity_for(), start_sprint(), scope_creep_tasks(),
+│                             write_daily_worklogs(), velocity(), and friends
+├── tasks.py                   Celery task: write_daily_worklogs_for_active_sprints
+├── management/commands/       write_worklogs — run the nightly job by hand
 └── admin.py
 
 tests/
@@ -39,13 +43,14 @@ tests/
 ├── test_smoke.py             1 test — the app boots and a Task can be made
 ├── test_dependency_graph.py  17 tests — cycle detection (TEST_PLAN.md §1)
 ├── test_blocking.py          7 tests — derived is_blocked (TEST_PLAN.md §2)
-└── test_capacity.py          14 tests — capacity arithmetic, time off, allocation (TEST_PLAN.md §3)
+├── test_capacity.py          15 tests — capacity arithmetic, time off, allocation, frozen snapshot (TEST_PLAN.md §3)
+└── test_sprints.py           13 tests — start_sprint atomicity, scope creep, burndown, velocity (TEST_PLAN.md §4)
 
 docker-compose.yml          postgres, redis, web, worker, beat — 5 services
 Dockerfile                  python:3.12-slim, requirements-dev installed
 ```
 
-**39 tests, all green.** `docker compose up` brings up all five services;
+**53 tests, all green.** `docker compose up` brings up all five services;
 `migrate` runs clean; the admin lists all nine models across the three apps.
 
 ---
@@ -203,10 +208,63 @@ stops a task from being assigned once it's `True` — per
 [TECHNICAL_SPEC.md](TECHNICAL_SPEC.md) §4, over-allocation is meant to warn,
 never block, and there's no save-time check anywhere that would prevent it.
 
-One test from [TEST_PLAN.md](TEST_PLAN.md) §3 was skipped for the same
-reason as the blocking-state test in Step 3:
-`test_capacity_is_frozen_at_sprint_start` needs `Sprint.start()` to exist,
-which is Phase 4, not Phase 3.
+`test_capacity_is_frozen_at_sprint_start` — the one test from
+[TEST_PLAN.md](TEST_PLAN.md) §3 that needed `Sprint.start()` to exist — was
+added once Step 6 below landed, closing out §3 entirely.
+
+### Step 6 — Sprint lifecycle: start, scope creep, burndown, velocity
+
+Four things landed together here, all in
+[sprints/services.py](../sprints/services.py), because they build on each
+other in the order [TECHNICAL_SPEC.md](TECHNICAL_SPEC.md) §5 describes them:
+
+**`start_sprint()`** is the one place in the codebase using
+`@transaction.atomic` so far. It writes a `SprintCommitment` row (copying
+the current estimate) for every task in the sprint, computes and stores a
+`Capacity` row for every project member via the `capacity_for()` from Step
+5, then stamps `started_at` — all three, or none of them, which is what
+`test_starting_a_sprint_is_atomic` forces by tripping the unique constraint
+on `SprintCommitment` partway through and asserting the sprint never
+flipped to `active`. Calling `start()` on anything but a `planned` sprint
+raises `SprintAlreadyStartedError` rather than silently re-snapshotting —
+re-running it would let a live sprint's capacity quietly drift from what
+was actually committed to.
+
+**Scope creep has no field.** `scope_creep_tasks()` is one line —
+`sprint.tasks.exclude(commitments__sprint=sprint)` — tasks in the sprint
+with no matching commitment row. `add_task_to_sprint()` deliberately does
+*not* create a commitment; the row's absence is the entire signal. This
+mirrors how `Task.is_blocked` was derived in Step 4 rather than stored, and
+`test_scope_creep_is_the_absence_of_a_commitment_row` asserts directly that
+no such flag exists anywhere on `Task` or `SprintCommitment`.
+
+**`committed_hours()` and `added_hours()` are two separate sums**, not one
+number with a footnote — committed reads `estimate_hours_at_start` off the
+frozen `SprintCommitment` rows, added reads the *current* `estimate_hours`
+off whatever `scope_creep_tasks()` returns (those were never frozen, so
+there's nothing to re-read from). Keeping them separate all the way down is
+what let `test_burndown_separates_committed_from_added` assert the two
+numbers don't silently merge.
+
+**`write_daily_worklogs()`** snapshots `remaining_hours` (= current
+estimate, or zero if unestimated) into one `WorkLog` row per unfinished
+task, keyed on `(task, date)` via `update_or_create` so re-running it for
+the same day is harmless. It's wired to actually run nightly in
+[sprints/tasks.py](../sprints/tasks.py) (a `@shared_task` iterating every
+active sprint) via `CELERY_BEAT_SCHEDULE` in
+[cadence/settings.py](../cadence/settings.py) — `django_celery_beat` is
+installed but not used as the scheduler backend here, since a static
+crontab is simpler for the one recurring job this project has. The
+`write_worklogs` management command
+([sprints/management/commands/write_worklogs.py](../sprints/management/commands/write_worklogs.py))
+calls the same task by hand, exactly as [SETUP.md](SETUP.md) describes.
+
+**`velocity()`** averages `committed_hours()` — never `added_hours()` —
+across the most recently completed sprints, and returns `None` until at
+least three exist. `test_velocity_uses_committed_hours_only` adds 99 hours
+of scope creep to three completed sprints specifically to prove it gets
+ignored; a fast-looking chaotic sprint should never inflate the next
+sprint's plan.
 
 ---
 
@@ -248,17 +306,18 @@ In build order, per [BUILD_PLAN.md](BUILD_PLAN.md):
 
 - **Finish Phase 2** — nothing structural left; the one skipped test
   (state-transition guard on blocked tasks) can be picked up whenever
-  that enforcement is designed.
-- **Finish Phase 3** — the arithmetic (`capacity_for`, `allocated_hours_for`,
-  `is_over_allocated`) is done and tested. What's left is freezing it: a
-  stored `Capacity` row per member per sprint, written once at sprint start
-  — which needs `Sprint.start()` from Phase 4 to exist first.
-- **Phase 4 — Sprints, snapshot, burndown** — `Sprint.start()` as one
-  transaction, scope creep as the absence of a `SprintCommitment` row,
-  nightly `WorkLog` writes via Celery beat (already wired, not yet used).
+  that enforcement is designed. This is the only intentionally-open item
+  left below Phase 5.
+- **Phase 3 and Phase 4 are both done** — capacity arithmetic, sprint
+  start/snapshot, scope creep, nightly burndown, and velocity are all
+  built and tested (53 tests total). The nightly `WorkLog` write is wired
+  via `CELERY_BEAT_SCHEDULE` and the `beat` container, but hasn't been
+  watched run against a live schedule yet — worth a manual check once
+  Phase 5 gives something to look at.
 - **Phase 5 — UI** — the first views and templates. Until this lands,
   everything above is only reachable through the admin, the shell, or
   tests, which is expected at this stage — see BUILD_PLAN.md's rule that
-  "the core is built before anything that displays it."
+  "the core is built before anything that displays it." This is the next
+  phase to start.
 - **Phase 6 — Deploy** — Railway + Neon, per
   [DEPLOYMENT.md](DEPLOYMENT.md).

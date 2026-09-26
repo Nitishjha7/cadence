@@ -1,3 +1,4 @@
+from collections import defaultdict
 from decimal import Decimal
 
 from django.contrib import messages
@@ -6,21 +7,23 @@ from django.views import View
 from django.views.generic import DetailView
 
 from projects.views_base import ProjectPermissionMixin
-from sprints.models import Sprint
-from sprints.services import (
-    SprintAlreadyStartedError,
-    allocated_hours_for,
-    is_over_allocated,
-    unestimated_task_count_for,
-)
+from sprints.models import Sprint, TimeOff, WorkLog
+from sprints.services import SprintAlreadyStartedError, velocity
 
 
 class CapacityView(ProjectPermissionMixin, DetailView):
     """
     Screen 4 — docs/UI_FLOW.md §4. Load bars, leave, over-allocation.
     Uses the *frozen* Capacity row if the sprint has started (so numbers
-    match what was committed to), falling back to the live calculation for
-    a sprint still being planned.
+    match what was committed to), falling back to a live calculation for a
+    sprint still being planned.
+
+    Deliberately does not call sprints.services' per-member functions in a
+    loop here — each of those runs its own query, which would reintroduce
+    the N+1 this view exists to avoid (docs/TECHNICAL_SPEC.md §3's
+    "prefetch or it's an N+1" lesson applies just as much to capacity as to
+    is_blocked). Instead everything is fetched in a handful of queries up
+    front and matched up in Python — see tests/test_queries.py.
     """
 
     model = Sprint
@@ -32,22 +35,47 @@ class CapacityView(ProjectPermissionMixin, DetailView):
         return Sprint.objects.filter(project=self.project)
 
     def get_context_data(self, **kwargs):
+        from tasks.models import Task
+
         context = super().get_context_data(**kwargs)
         sprint = self.object
+        members = list(self.project.members.select_related("user"))
+
+        capacity_by_member = {
+            c.member_id: c.available_hours for c in sprint.capacities.all()
+        }
+
+        time_off_by_member = defaultdict(list)
+        for time_off in TimeOff.objects.filter(
+            member__project=self.project, starts_on__lte=sprint.ends_on, ends_on__gte=sprint.starts_on
+        ).select_related("member"):
+            time_off_by_member[time_off.member_id].append(time_off)
+
+        allocated_by_member = defaultdict(Decimal)
+        unestimated_by_member = defaultdict(int)
+        assigned_tasks = (
+            Task.objects.filter(project=self.project, sprint=sprint, assignee__isnull=False)
+            .exclude(state=Task.State.DONE)
+        )
+        for task in assigned_tasks:
+            if task.estimate_hours is not None:
+                allocated_by_member[task.assignee_id] += task.estimate_hours
+            else:
+                unestimated_by_member[task.assignee_id] += 1
+
         rows = []
-        for member in self.project.members.select_related("user"):
-            capacity_row = sprint.capacities.filter(member=member).first()
-            available = capacity_row.available_hours if capacity_row else None
-            allocated = allocated_hours_for(member, sprint)
-            time_off = member.time_off.filter(starts_on__lte=sprint.ends_on, ends_on__gte=sprint.starts_on)
+        for member in members:
+            available = capacity_by_member.get(member.id)
+            allocated = allocated_by_member[member.id]
             rows.append({
                 "member": member,
                 "available": available,
                 "allocated": allocated,
-                "over_allocated": is_over_allocated(member, sprint) if available is not None else False,
-                "unestimated_count": unestimated_task_count_for(member, sprint),
-                "time_off": time_off,
+                "over_allocated": available is not None and allocated > available,
+                "unestimated_count": unestimated_by_member[member.id],
+                "time_off": time_off_by_member[member.id],
             })
+
         available_known = [r["available"] for r in rows if r["available"] is not None]
 
         context["rows"] = rows
@@ -76,14 +104,10 @@ class SprintDetailView(ProjectPermissionMixin, DetailView):
 
         worklogs = {}
         if sprint.started_at:
-            from sprints.models import WorkLog
-
             for log in WorkLog.objects.filter(task__sprint=sprint).order_by("date"):
                 worklogs.setdefault(log.date, 0)
                 worklogs[log.date] += log.remaining_hours
         context["burndown"] = sorted(worklogs.items())
-
-        from sprints.services import velocity
 
         context["velocity"] = velocity(self.project)
         return context

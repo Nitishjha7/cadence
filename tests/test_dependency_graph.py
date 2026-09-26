@@ -13,8 +13,8 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.forms import modelform_factory
 
-from tasks.models import Task, TaskDependency
-from tests.factories import ProjectFactory, TaskDependencyFactory, TaskFactory
+from tasks.models import TaskDependency
+from tests.factories import ProjectFactory, TaskFactory
 
 pytestmark = pytest.mark.django_db
 

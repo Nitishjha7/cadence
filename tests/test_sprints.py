@@ -5,7 +5,7 @@ Starting a sprint freezes scope (SprintCommitment + Capacity, in one
 transaction). Scope creep is the absence of a commitment row, not a flag.
 """
 
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 import pytest

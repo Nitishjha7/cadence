@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Cadence{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    {% csrf_token %}
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <nav class="bg-gray-900 text-white px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'projects:project_list' %}" class="font-bold text-lg">Cadence</a>
+            {% if project %}
+                <span class="text-gray-400">/</span>
+                <span>{{ project.name }}</span>
+            {% endif %}
+        </div>
+        <div class="text-sm text-gray-300">
+            {% if user.is_authenticated %}
+                {{ user.email|default:user.username }}
+                {% if member %}<span class="ml-2 px-2 py-0.5 rounded bg-gray-700 text-xs uppercase">{{ member.get_role_display }}</span>{% endif %}
+                <form method="post" action="{% url 'logout' %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="ml-3 underline">Log out</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="underline">Log in</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-6">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 px-4 py-2 rounded bg-amber-100 text-amber-900 border border-amber-300">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

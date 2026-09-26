@@ -1,0 +1,56 @@
+{# HTMX partial — rendered both inline on task_detail.html and swapped in
+   after an add-dependency POST. docs/UI_FLOW.md §3: this is the most
+   important interaction in the application. #}
+<div id="dependencies" class="border rounded p-4 bg-white">
+    {% if error %}
+    <div class="bg-red-50 border border-red-300 text-red-800 rounded p-4 mb-4">
+        <p class="font-semibold mb-2">&#9888; Circular dependency</p>
+        <p class="text-sm mb-2">This would create a cycle:</p>
+        <pre class="text-xs bg-white border rounded p-2 whitespace-pre-wrap">{{ error }}</pre>
+        <button class="mt-3 text-sm underline"
+                hx-get="{% url 'tasks:add_dependency' project_pk=project.pk task_pk=task.pk %}"
+                hx-target="#dependencies" hx-swap="outerHTML">
+            Try another task
+        </button>
+    </div>
+    {% endif %}
+
+    <h3 class="font-semibold mb-2">Blocked by</h3>
+    {% for dep in task.dependencies.all %}
+    <div class="flex items-center justify-between py-1 border-b last:border-0">
+        <a href="{% url 'tasks:task_detail' project_pk=project.pk task_pk=dep.depends_on.pk %}" class="text-sm">
+            {{ dep.depends_on.key }} — {{ dep.depends_on.title }}
+        </a>
+        <span class="text-xs px-2 py-0.5 rounded {% if dep.depends_on.state == 'done' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+            {{ dep.depends_on.get_state_display }}
+        </span>
+    </div>
+    {% empty %}
+    <p class="text-sm text-gray-400">Nothing blocks this task.</p>
+    {% endfor %}
+
+    <h3 class="font-semibold mt-4 mb-2">Blocks</h3>
+    {% for dep in task.dependents.all %}
+    <div class="py-1 border-b last:border-0">
+        <a href="{% url 'tasks:task_detail' project_pk=project.pk task_pk=dep.task.pk %}" class="text-sm">
+            {{ dep.task.key }} — {{ dep.task.title }}
+        </a>
+    </div>
+    {% empty %}
+    <p class="text-sm text-gray-400">This task blocks nothing.</p>
+    {% endfor %}
+
+    {% if member and member.role != "viewer" %}
+    <form class="mt-4 flex gap-2"
+          hx-post="{% url 'tasks:add_dependency' project_pk=project.pk task_pk=task.pk %}"
+          hx-target="#dependencies" hx-swap="outerHTML">
+        {% csrf_token %}
+        <select name="depends_on" class="border rounded px-2 py-1 text-sm flex-1">
+            {% for other in other_tasks %}
+            <option value="{{ other.pk }}">{{ other.key }} — {{ other.title }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="bg-gray-900 text-white text-sm px-3 py-1 rounded">+ Add dependency</button>
+    </form>
+    {% endif %}
+</div>

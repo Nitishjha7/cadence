@@ -22,6 +22,37 @@ class Sprint(models.Model):
     def __str__(self):
         return f"{self.name} ({self.project.key})"
 
+    # Thin wrappers over sprints.services — the logic lives there so it can
+    # be reasoned about and imported without the ORM model in the way; these
+    # exist only for the ergonomic `sprint.start()` call site.
+
+    def start(self, *, now=None):
+        from sprints.services import start_sprint
+
+        return start_sprint(self, now=now)
+
+    def add_task(self, task):
+        from sprints.services import add_task_to_sprint
+
+        return add_task_to_sprint(self, task)
+
+    def scope_creep_tasks(self):
+        from sprints.services import scope_creep_tasks
+
+        return scope_creep_tasks(self)
+
+    @property
+    def committed_hours(self):
+        from sprints.services import committed_hours
+
+        return committed_hours(self)
+
+    @property
+    def added_hours(self):
+        from sprints.services import added_hours
+
+        return added_hours(self)
+
 
 class SprintCommitment(models.Model):
     """

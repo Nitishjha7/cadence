@@ -1,12 +1,16 @@
 """
-Capacity arithmetic — kept out of models.py so it stays independently
-testable and the models themselves stay thin records of fields.
+Capacity arithmetic and sprint lifecycle — kept out of models.py so it stays
+independently testable and the models themselves stay thin records of
+fields.
 
-See docs/TECHNICAL_SPEC.md §4 for the full write-up.
+See docs/TECHNICAL_SPEC.md §4 and §5 for the full write-up.
 """
 
 from datetime import timedelta
 from decimal import Decimal
+
+from django.db import transaction
+from django.utils import timezone
 
 
 def _date_range(starts_on, ends_on):
@@ -96,3 +100,135 @@ def is_over_allocated(member, sprint):
     overload people; this is information, not a gate.
     """
     return allocated_hours_for(member, sprint) > capacity_for(member, sprint)
+
+
+# ---------------------------------------------------------------------------
+# Sprint lifecycle — docs/TECHNICAL_SPEC.md §5
+# ---------------------------------------------------------------------------
+
+
+class SprintAlreadyStartedError(Exception):
+    """Raised by start_sprint() on a sprint that is not `planned`."""
+
+
+@transaction.atomic
+def start_sprint(sprint, *, now=None):
+    """
+    Transition planned -> active. In one transaction:
+
+    1. Write a SprintCommitment row for every task currently in the sprint,
+       copying the current estimate.
+    2. Compute and store Capacity for every project member.
+    3. Stamp started_at.
+
+    Both snapshots are taken now, not computed later, because both inputs
+    change during a sprint — estimates get revised, leave gets booked. A
+    burndown computed from today's numbers would show a sprint that was
+    never planned. @transaction.atomic means a failure partway through
+    (e.g. a duplicate commitment) leaves no partial commitments behind.
+    """
+    from sprints.models import Capacity, Sprint, SprintCommitment
+
+    if sprint.state != Sprint.State.PLANNED:
+        raise SprintAlreadyStartedError(
+            f"Sprint {sprint.name!r} is {sprint.state}, not planned — it cannot be started again."
+        )
+
+    for task in sprint.tasks.all():
+        SprintCommitment.objects.create(
+            sprint=sprint, task=task, estimate_hours_at_start=task.estimate_hours
+        )
+
+    for member in sprint.project.members.all():
+        Capacity.objects.create(
+            member=member, sprint=sprint, available_hours=capacity_for(member, sprint)
+        )
+
+    sprint.state = Sprint.State.ACTIVE
+    sprint.started_at = now or timezone.now()
+    sprint.save(update_fields=["state", "started_at"])
+
+    return sprint
+
+
+def add_task_to_sprint(sprint, task):
+    """
+    Add a task to an already-active sprint. No SprintCommitment row is
+    written — that absence *is* the scope-creep marker
+    (docs/TECHNICAL_SPEC.md §5), not a separate flag.
+    """
+    task.sprint = sprint
+    task.save(update_fields=["sprint"])
+    return task
+
+
+def scope_creep_tasks(sprint):
+    """Tasks in this sprint with no commitment row — added after start."""
+    return sprint.tasks.exclude(commitments__sprint=sprint)
+
+
+def committed_hours(sprint):
+    """Sum of estimate_hours_at_start across every SprintCommitment row."""
+    total = Decimal(0)
+    for commitment in sprint.commitments.all():
+        if commitment.estimate_hours_at_start is not None:
+            total += commitment.estimate_hours_at_start
+    return total
+
+
+def added_hours(sprint):
+    """Sum of estimate_hours for scope-creep tasks (current estimate, since
+    they were never frozen by a commitment)."""
+    total = Decimal(0)
+    for task in scope_creep_tasks(sprint):
+        if task.estimate_hours is not None:
+            total += task.estimate_hours
+    return total
+
+
+def write_daily_worklogs(sprint, *, as_of=None):
+    """
+    Write one WorkLog row per unfinished task in the sprint, snapshotting
+    its current estimate as "remaining_hours" for today. Meant to run
+    nightly via Celery beat. Reconstructing history from current state is
+    impossible once estimates change — this daily row is the only honest
+    source for the burndown.
+
+    Unestimated tasks are treated as zero remaining, consistent with how
+    they're treated everywhere else (docs/TECHNICAL_SPEC.md §4).
+    """
+    from tasks.models import Task
+    from sprints.models import WorkLog
+
+    as_of = as_of or timezone.now().date()
+    written = []
+    for task in sprint.tasks.exclude(state=Task.State.DONE):
+        remaining = task.estimate_hours if task.estimate_hours is not None else Decimal(0)
+        log, _created = WorkLog.objects.update_or_create(
+            task=task, date=as_of, defaults={"remaining_hours": remaining}
+        )
+        written.append(log)
+    return written
+
+
+def velocity(project, *, sprint_count=3):
+    """
+    Average committed hours (never scope creep) across the most recently
+    completed sprints, up to sprint_count. Counting scope creep here would
+    let a chaotic sprint look fast and inflate the next sprint's plan.
+
+    Returns None until at least sprint_count completed sprints exist —
+    reporting a velocity from one lucky sprint would be worse than
+    reporting nothing.
+    """
+    from sprints.models import Sprint
+
+    completed = list(
+        project.sprints.filter(state=Sprint.State.COMPLETED)
+        .order_by("-started_at")[:sprint_count]
+    )
+    if len(completed) < sprint_count:
+        return None
+
+    total = sum(committed_hours(sprint) for sprint in completed)
+    return total / Decimal(len(completed))

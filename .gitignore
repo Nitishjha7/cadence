@@ -21,3 +21,6 @@ htmlcov/
 *.swp
 
 .DS_Store
+
+# My own working notes — interview prep, pitch, anticipated questions. Not for the public repo.
+.notes/

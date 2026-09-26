@@ -212,7 +212,7 @@ about readiness is worse than no tool.
 
 **The cost.** A board rendering 45 tasks would issue a query per task.
 `prefetch_related('dependencies__depends_on')` reduces it to two queries total,
-and [TEST_PLAN.md](TEST_PLAN.md) §4 has a test asserting the query count so the
+and [TEST_PLAN.md](TEST_PLAN.md) §6 has a test asserting the query count so the
 N+1 cannot creep back in.
 
 Completing a task therefore unblocks its dependents with no write of any kind —

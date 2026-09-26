@@ -18,9 +18,9 @@ its table is built here on purpose, not incidentally:
 
 Task numbers below deliberately match the worked examples in
 docs/UI_FLOW.md and docs/DEMO_SCRIPT.md (CAD-3 API keys, CAD-7 Payment
-gateway, CAD-14 Webhook retry, CAD-18 Settlement, CAD-31/32 scope creep) so
-the running app reads the same as the docs. After any change here, re-run
-and confirm clicking "Add dependency" on CAD-3 -> CAD-7 still rejects.
+gateway, CAD-14 Webhook retry, CAD-18 Settlement) so the running app reads
+the same as the docs. After any change here, re-run and confirm clicking
+"Add dependency" on CAD-3 -> CAD-7 still rejects.
 """
 
 from datetime import date, timedelta
@@ -220,8 +220,8 @@ class Command(BaseCommand):
         for offset in range(8):  # days 0-7: before scope creep
             write_daily_worklogs(sprint, as_of=sprint.starts_on + timedelta(days=offset))
 
-        # Scope creep: two tasks added on day 8, numbered 31/32 to match
-        # docs/UI_FLOW.md's burndown mockup exactly.
+        # Scope creep: two tasks added on day 8, after the sprint already
+        # has worklogs — this is what makes the burndown step up visibly.
         day_8 = sprint.starts_on + timedelta(days=7)
         next_number = project.tasks.count() + 1
         creep_1 = self._task(

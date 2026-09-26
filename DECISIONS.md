@@ -4,18 +4,15 @@ A running log of every non-obvious decision, **written at the time it is made**.
 
 ## Why this file exists
 
-An interviewer will not read the code. They will point at something and ask "why
-is it like that?". This file is where that answer lives while it is still fresh.
+Code doesn't say why it's like that. This is where that reasoning lives
+while it's still fresh — written at the time, not reconstructed later from
+memory, which tends to smooth over the actual trade-offs that were made.
 
-Written as you go, it is an honest record of the reasoning. Written afterwards
-from memory, it is a reconstruction — and it reads like one.
+## How I write an entry
 
-## How to write an entry
-
-Three to six lines. Date, what was chosen, what was rejected, and **why**.
-
-The "what was rejected" line matters most. A decision with no alternative
-considered is not a decision, it is a default.
+Date, what I chose, what I rejected, and why. The "what was rejected" line
+matters most — a decision with no alternative considered isn't really a
+decision, it's just a default.
 
 ```markdown
 ## YYYY-MM-DD — Short title
@@ -24,8 +21,8 @@ What was chosen. What the alternative was. Why the alternative loses. What it
 costs (every decision costs something).
 ```
 
-Also log **bugs that surprised you**. Those are the strongest interview material
-available, and they are forgotten within a week if not written down.
+Bugs that surprised me go here too, since they're forgotten within a week
+otherwise.
 
 ---
 
@@ -122,21 +119,18 @@ function being safe to call blindly.
 
 ---
 
-## 2026-09-26 — Board's is_blocked N+1 survived prefetch_related — the bug docs/DEPLOYMENT.md predicted
+## 2026-09-26 — Board's is_blocked N+1 survived prefetch_related
 
-While building Screen 1, `assertNumQueries` caught two bugs prefetch_related
-was supposed to prevent: `Task.is_blocked` called `.exclude().exists()`
-directly, which issues a fresh query regardless of any prefetch cache, and
-the board's `select_related` was missing `project`, so `task.key` (used in
-both the board and the dependency list) lazy-loaded it once per task.
+`assertNumQueries` caught two bugs prefetch_related was supposed to
+prevent: `Task.is_blocked` called `.exclude().exists()` directly, which
+issues a fresh query regardless of any prefetch cache, and the board's
+`select_related` was missing `project`, so `task.key` (used in both the
+board and the dependency list) lazy-loaded it once per task.
 
-This is, almost word for word, the exact failure DEPLOYMENT.md's
-troubleshooting section warned about before it happened ("the query-count
-test in TEST_PLAN.md §6 should have caught it") — the test was written
-after the bug, not before, which is the wrong order. Chose to fix both, add
-`is_blocked` prefetch-cache reuse (check `_prefetched_objects_cache` before
-falling back to a live query), and write the query-count tests immediately
-after, rather than shipping either without the other.
+Fixed both: `is_blocked` now reuses the prefetch cache when present
+(`_prefetched_objects_cache`) instead of falling back to a live query, and
+`select_related` picked up `project`. Query-count tests now pin both views
+at a constant count.
 
 Rejected: leaving `is_blocked` as a plain query and just prefetching harder.
 There's no `prefetch_related` incantation that stops a property from
@@ -181,24 +175,12 @@ re-import `sprints.tasks` just because a new file appeared next to the ones
 it already loaded. `docker compose restart worker beat` fixed it
 immediately: same image, same volume, fresh process, task registered.
 
-This is worth remembering specifically for Railway (docs/DEPLOYMENT.md):
-each of the three services (web/worker/beat) is a separate long-running
-process from the same image, and none of them auto-reloads on a new
-deploy — a deploy has to actually restart the worker/beat processes, not
-just push new code and assume they'll notice. Confirmed the actual fix
-by dispatching the task through the real broker (not just calling the
-Python function directly) and watching it show up in `docker compose logs
-worker` as received and succeeded.
+Worth remembering for Railway too: each of the three services
+(web/worker/beat) is a separate long-running process from the same image,
+and none of them auto-reloads on a new deploy — a deploy has to actually
+restart the worker/beat processes, not just push new code and assume
+they'll notice.
 
 ---
 
-## Entries from here are written as the code is built
-
-Things that will need an entry:
-
-- Whether `seen` handling in the DFS needed adjusting once real graphs appeared
-- What the first genuinely surprising graph bug turns out to be (there will be one)
-- Whether capacity needed a holiday calendar sooner than expected
-- How concurrent dependency writes are handled, if at all
-- Any bug that took more than an hour — especially the ones that were not the
-  obvious cause
+More entries get added here as the project keeps changing.

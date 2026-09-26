@@ -6,15 +6,12 @@
 
 </div>
 
-> **Status: feature-complete, not yet deployed.** Everything through
-> [Phase 5](docs/BUILD_PLAN.md) is built and tested — the dependency
-> graph, capacity, sprint lifecycle, permissions, and all five screens
-> (`docker compose up`, `seed_demo`, then log in and click through it) —
-> see [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md) for the
-> full account. Only the live deploy (Phase 6) is outstanding. This README
-> will be rewritten with real screenshots, the live URL, and real test
-> numbers once that lands — and it will not claim anything the code does
-> not do before then.
+> **Status: not deployed yet.** The dependency graph, capacity, sprint
+> lifecycle, permissions, and all five screens are built and tested —
+> `docker compose up`, run `seed_demo`, and log in to click through it.
+> See [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md) for how
+> it's put together. This README will get real screenshots and a live URL
+> once it's deployed.
 
 ---
 
@@ -50,7 +47,7 @@ Those two questions — a graph problem and an arithmetic problem — are the pr
 | **Async** | Celery + Celery Beat (overdue checks, daily digest) |
 | **Admin** | Django admin as the manager console |
 | **Infra** | Docker Compose |
-| **Tests** | pytest, targeting ~75 |
+| **Tests** | pytest, 65 passing |
 
 ---
 
@@ -101,16 +98,15 @@ fiction.
 
 | Doc | What is in it |
 |---|---|
-| [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md) | What is actually built so far, in the order it was built, and why — start here |
+| [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md) | How the app is put together — start here |
 | [docs/TECHNICAL_SPEC.md](docs/TECHNICAL_SPEC.md) | Schema, cycle detection algorithm, capacity model, sprint snapshot |
-| [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) | Six phases, in build order, with what "done" means for each |
+| [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) | Build phases and what "done" means for each |
 | [docs/TEST_PLAN.md](docs/TEST_PLAN.md) | Every test to write, grouped, with the graph cases spelled out |
 | [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | The four-minute walkthrough, screen by screen |
 | [docs/UI_FLOW.md](docs/UI_FLOW.md) | The five screens, what each shows, and the seed data behind them |
-| [docs/INTERVIEW_NOTES.md](docs/INTERVIEW_NOTES.md) | Pitch, trade-offs, known limitations, anticipated questions |
 | [docs/SETUP.md](docs/SETUP.md) | Getting it running locally |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Railway + Neon, why those, and what to verify after |
-| [DECISIONS.md](DECISIONS.md) | A running log of every non-obvious decision, written as it is made |
+| [DECISIONS.md](DECISIONS.md) | A log of the non-obvious decisions and why I made them |
 
 ---
 

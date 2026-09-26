@@ -142,11 +142,9 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 
-# Production hardening — active whenever DEBUG=0, driven by env vars rather
-# than a separate settings module (docs/DEPLOYMENT.md originally sketched a
-# cadence.settings.production module; one file with DEBUG-gated blocks is
-# simpler for a project this size and there's only ever one deploy target —
-# see DECISIONS.md).
+# Production hardening — active whenever DEBUG=0. One file with a
+# DEBUG-gated block instead of a separate settings module, since there's
+# only one deploy target here (see DECISIONS.md).
 if not DEBUG:
     SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
     SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=True, cast=bool)

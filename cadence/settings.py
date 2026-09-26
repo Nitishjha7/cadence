@@ -16,6 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 
 
 # Application definition
@@ -81,6 +82,9 @@ DATABASES = {
         "PASSWORD": _db_url.password,
         "HOST": _db_url.hostname,
         "PORT": _db_url.port,
+        # Neon (docs/DEPLOYMENT.md) requires SSL; local Postgres in
+        # docker-compose doesn't care either way, so this is safe everywhere.
+        "OPTIONS": {"sslmode": "require"} if "sslmode=require" in config("DATABASE_URL") else {},
     }
 }
 
@@ -136,3 +140,17 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 24 * 60 * 60,  # once a day; exact time doesn't matter for a demo
     },
 }
+
+
+# Production hardening — active whenever DEBUG=0, driven by env vars rather
+# than a separate settings module (docs/DEPLOYMENT.md originally sketched a
+# cadence.settings.production module; one file with DEBUG-gated blocks is
+# simpler for a project this size and there's only ever one deploy target —
+# see DECISIONS.md).
+if not DEBUG:
+    SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
+    SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=True, cast=bool)
+    CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=True, cast=bool)
+    SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=3600, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

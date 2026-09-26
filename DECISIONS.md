@@ -166,6 +166,32 @@ three or four environments instead of two.
 
 ---
 
+## 2026-09-26 — Bug that surprised me: worker container didn't see the new Celery task after adding it
+
+Added `sprints/tasks.py` (the nightly worklog task) while `worker`/`beat`
+containers from an earlier `docker compose up` were still running. Manually
+dispatching the task with `.delay()` hit `KeyError: 'sprints.tasks.write_daily_worklogs_for_active_sprints'`
+in the worker log — the task wasn't in its registry at all, despite the
+file being on disk (bind-mounted, so the container could see it).
+
+Cause: `celery -A cadence worker` builds its task registry once, at process
+start, via `app.autodiscover_tasks()`. A bind mount syncs the *file*, but
+not the *running Python process's* imports — the worker had no reason to
+re-import `sprints.tasks` just because a new file appeared next to the ones
+it already loaded. `docker compose restart worker beat` fixed it
+immediately: same image, same volume, fresh process, task registered.
+
+This is worth remembering specifically for Railway (docs/DEPLOYMENT.md):
+each of the three services (web/worker/beat) is a separate long-running
+process from the same image, and none of them auto-reloads on a new
+deploy — a deploy has to actually restart the worker/beat processes, not
+just push new code and assume they'll notice. Confirmed the actual fix
+by dispatching the task through the real broker (not just calling the
+Python function directly) and watching it show up in `docker compose logs
+worker` as received and succeeded.
+
+---
+
 ## Entries from here are written as the code is built
 
 Things that will need an entry:

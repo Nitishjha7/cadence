@@ -6,13 +6,15 @@
 
 </div>
 
-> **Status: in progress.** The dependency graph, capacity, and sprint
-> start/snapshot/burndown ([Phases 1–4](docs/BUILD_PLAN.md)) are built and
-> tested — see [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md)
-> for what exists right now. UI and deployment are not built yet.
-> Everything below still describes the full *intended* scope. This README
-> will be rewritten with real screenshots and real numbers once the UI
-> lands — and it will not claim anything the code does not do before then.
+> **Status: feature-complete, not yet deployed.** Everything through
+> [Phase 5](docs/BUILD_PLAN.md) is built and tested — the dependency
+> graph, capacity, sprint lifecycle, permissions, and all five screens
+> (`docker compose up`, `seed_demo`, then log in and click through it) —
+> see [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md) for the
+> full account. Only the live deploy (Phase 6) is outstanding. This README
+> will be rewritten with real screenshots, the live URL, and real test
+> numbers once that lands — and it will not claim anything the code does
+> not do before then.
 
 ---
 

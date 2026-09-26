@@ -5,10 +5,11 @@ why each piece looks the way it does. [DECISIONS.md](../DECISIONS.md) is the
 terse log of individual choices; this is the connected story — read this
 first, then dip into DECISIONS.md for the reasoning behind any one line.
 
-Status as of this writing: **Phases 1-4 are done** — foundation, the
-dependency graph, capacity, and sprint start/snapshot/burndown/velocity.
-UI and deployment are not built yet — see [BUILD_PLAN.md](BUILD_PLAN.md)
-for what is left.
+Status as of this writing: **Phases 1-5 are done** — foundation, the
+dependency graph, capacity, sprint start/snapshot/burndown/velocity, and
+now the UI: permissions, all five screens, and `seed_demo`. Only
+deployment (Phase 6) is left — see [BUILD_PLAN.md](BUILD_PLAN.md) and
+[DEPLOYMENT.md](DEPLOYMENT.md) for what remains.
 
 ---
 
@@ -16,17 +17,22 @@ for what is left.
 
 ```
 cadence/                   Django project package
-├── settings.py             env-driven config (DATABASE_URL, SECRET_KEY, no fallback secrets)
+├── settings.py             env-driven config, production hardening gated on DEBUG=0
 ├── celery.py                Celery app, wired to Django settings
-└── urls.py                  empty root urlconf so far — no views yet
+└── urls.py                  admin, auth, and the three apps' urls.py included
 
-projects/                  Who is working, on what
+projects/                  Who is working, on what, and who can do what
 ├── models.py                Project, Member
+├── permissions.py            can_view/can_edit/can_manage — role checks
+├── views_base.py              ProjectPermissionMixin — every view inherits this
+├── views.py / urls.py         Screen: project list (the landing page)
+├── management/commands/       seed_demo — the whole demo, built by hand and verified
 └── admin.py
 
 tasks/                     What needs doing, and the dependency graph
 ├── models.py                Task, TaskDependency
 ├── services.py               would_create_cycle() — the DFS cycle detector
+├── views.py / urls.py         Screens 1-3: board, task detail, add-dependency (HTMX)
 └── admin.py
 
 sprints/                   Planning windows, capacity, burndown
@@ -34,9 +40,16 @@ sprints/                   Planning windows, capacity, burndown
 │                             Capacity, TimeOff, WorkLog
 ├── services.py               capacity_for(), start_sprint(), scope_creep_tasks(),
 │                             write_daily_worklogs(), velocity(), and friends
+├── views.py / urls.py         Screens 4-5: capacity, sprint detail + burndown
 ├── tasks.py                   Celery task: write_daily_worklogs_for_active_sprints
 ├── management/commands/       write_worklogs — run the nightly job by hand
 └── admin.py
+
+templates/                 Django templates + Tailwind (CDN) + HTMX (CDN)
+├── base.html                 nav, messages, htmx/tailwind script tags
+├── registration/login.html
+├── projects/, tasks/, sprints/  one template per screen, one HTMX partial
+                                 (tasks/_dependencies.html) swapped in place
 
 tests/
 ├── factories.py             factory_boy factories for every model
@@ -44,14 +57,19 @@ tests/
 ├── test_dependency_graph.py  17 tests — cycle detection (TEST_PLAN.md §1)
 ├── test_blocking.py          7 tests — derived is_blocked (TEST_PLAN.md §2)
 ├── test_capacity.py          15 tests — capacity arithmetic, time off, allocation, frozen snapshot (TEST_PLAN.md §3)
-└── test_sprints.py           13 tests — start_sprint atomicity, scope creep, burndown, velocity (TEST_PLAN.md §4)
+├── test_sprints.py           13 tests — start_sprint atomicity, scope creep, burndown, velocity (TEST_PLAN.md §4)
+├── test_permissions.py       9 tests — role checks, HTTP 404-not-403, URLconf mixin walk (TEST_PLAN.md §5)
+└── test_queries.py           3 tests — board/capacity run in constant queries (TEST_PLAN.md §6)
 
+.github/workflows/ci.yml    ruff + pytest against real postgres/redis, on push and PR
 docker-compose.yml          postgres, redis, web, worker, beat — 5 services
 Dockerfile                  python:3.12-slim, requirements-dev installed
 ```
 
-**53 tests, all green.** `docker compose up` brings up all five services;
-`migrate` runs clean; the admin lists all nine models across the three apps.
+**65 tests, all green.** `docker compose up` brings up all five services;
+`migrate` runs clean; `seed_demo` builds the full demo project; the admin
+lists all nine models across the three apps and is reachable only by the
+manager login.
 
 ---
 
@@ -266,6 +284,54 @@ of scope creep to three completed sprints specifically to prove it gets
 ignored; a fast-looking chaotic sprint should never inflate the next
 sprint's plan.
 
+### Step 7 — Permissions, the five screens, and the N+1 bugs they surfaced
+
+**Permissions first, because every view depends on it.**
+[projects/permissions.py](../projects/permissions.py) is three one-line
+functions (`can_view`/`can_edit`/`can_manage`) checking a `Member.role`.
+[projects/views_base.py](../projects/views_base.py)'s `ProjectPermissionMixin`
+resolves the project from the URL and 404s — never 403s — a non-member,
+because a 403 would itself leak that the project exists to someone who
+shouldn't know that. Every project-scoped view inherits it, and
+`tests/test_permissions.py::test_every_project_scoped_view_uses_the_permission_mixin`
+walks the actual URLconf and fails the suite if a new view forgets to.
+
+**The five screens** (docs/UI_FLOW.md) went in as: board and task detail
+(read-only), add-dependency (the HTMX interaction, wired straight to the
+same `TaskDependency.clean()` from Step 3 — the exact same
+`ValidationError` renders as the on-page cycle box, no separate error
+handling path to keep in sync), state-change (server-enforced independent
+of the disabled `<select>`), capacity, and sprint detail with the burndown
+drawn as CSS bars (no charting library — one `<div>` per day, height set by
+`{% widthratio %}`).
+
+**Two N+1 bugs surfaced immediately** once real query counts were measured
+— logged in full in DECISIONS.md, summarized here: `Task.is_blocked`'s
+`.exclude().exists()` ignored `prefetch_related` entirely and queried once
+per task regardless, and the board's `select_related` was missing
+`project`, so `task.key` lazy-loaded it once per task too. Both fixed
+(`is_blocked` now checks `_prefetched_objects_cache` before falling back to
+a live query), both pinned at a constant query count in
+[tests/test_queries.py](../tests/test_queries.py) — verified by hand at
+both 45 and 90 tasks that the count didn't move. The capacity view got the
+same treatment preemptively: it batches `Capacity`/`TimeOff`/assigned-task
+lookups into three queries total rather than looping per member, which
+`test_capacity_view_does_not_scale_queries_with_members` confirms at 1
+member and at 11.
+
+**`seed_demo`** is the last piece, and per docs/UI_FLOW.md it's treated as
+the demo, not a fixture. Every line in that doc's requirements table is
+built and was verified by hand, not assumed: the cycle pair is fixed at
+CAD-3/CAD-7 to match docs/DEMO_SCRIPT.md exactly (an `assert` in the
+seeder itself catches if a future edit makes the numbering drift), the
+4+-deep chain and the diamond both exist in the actual seeded graph (walked
+by hand to confirm depth 6, not estimated), two members
+(Priya, Vikram) are genuinely over capacity per `is_over_allocated()`, and
+186 `WorkLog` rows exist across the sprint rather than two endpoints. The
+manager login was also given `is_staff=True` — easy to miss, since nothing
+about "the demo has three role logins" implies one of them needs a
+Django-specific flag to reach `/admin/` at all.
+
 ---
 
 ## 3. How to see it work right now
@@ -274,50 +340,34 @@ sprint's plan.
 cp .env.example .env
 docker compose up -d
 docker compose exec web python manage.py migrate
+docker compose exec web python manage.py seed_demo
 docker compose exec web pytest -v
 ```
 
-That's the entire "does this actually work" loop today — there's no UI yet,
-so the way to see the cycle rejection and the derived status is through the
-test suite or the Django shell:
-
-```bash
-docker compose exec web python manage.py shell
-```
-
-```python
-from tests.factories import ProjectFactory, TaskFactory
-from tasks.models import TaskDependency
-
-p = ProjectFactory(key="CAD")
-a = TaskFactory(project=p, number=1, title="API keys")
-b = TaskFactory(project=p, number=2, title="Payment gateway")
-
-TaskDependency.objects.create(task=b, depends_on=a)   # fine — B waits for A
-TaskDependency.objects.create(task=a, depends_on=b)   # raises ValidationError,
-                                                        # names the exact cycle
-```
+Then open `http://localhost:8005/` and log in as `manager@cadence.demo` /
+`password` (see [SETUP.md](SETUP.md) for the other two logins). From the
+board: click into **CAD-3** (API keys), add a dependency on **CAD-7**
+(Payment gateway) — it rejects with the exact cycle path, live, no shell
+required. That is the whole [DEMO_SCRIPT.md](DEMO_SCRIPT.md) walkthrough,
+now actually clickable rather than something to imagine from the docs.
 
 ---
 
 ## 4. What's next
 
-In build order, per [BUILD_PLAN.md](BUILD_PLAN.md):
+Only one phase is left, per [BUILD_PLAN.md](BUILD_PLAN.md):
 
-- **Finish Phase 2** — nothing structural left; the one skipped test
-  (state-transition guard on blocked tasks) can be picked up whenever
-  that enforcement is designed. This is the only intentionally-open item
-  left below Phase 5.
-- **Phase 3 and Phase 4 are both done** — capacity arithmetic, sprint
-  start/snapshot, scope creep, nightly burndown, and velocity are all
-  built and tested (53 tests total). The nightly `WorkLog` write is wired
-  via `CELERY_BEAT_SCHEDULE` and the `beat` container, but hasn't been
-  watched run against a live schedule yet — worth a manual check once
-  Phase 5 gives something to look at.
-- **Phase 5 — UI** — the first views and templates. Until this lands,
-  everything above is only reachable through the admin, the shell, or
-  tests, which is expected at this stage — see BUILD_PLAN.md's rule that
-  "the core is built before anything that displays it." This is the next
-  phase to start.
+- **Phase 1-5 are done.** Foundation, the dependency graph, capacity,
+  sprint lifecycle, and the UI — permissions, all five screens, and
+  `seed_demo` — are all built and tested (65 tests). The nightly `WorkLog`
+  Celery task was verified end to end through the real broker (dispatched
+  with `.delay()`, confirmed received and succeeded in the worker log —
+  see DECISIONS.md for the stale-worker-registry bug that surfaced while
+  checking this). The one intentionally-skipped test from Phase 2
+  (a state-transition guard on blocked tasks beyond what
+  `TaskStateChangeView` already enforces server-side) remains open — it
+  was never blocking, just deferred.
 - **Phase 6 — Deploy** — Railway + Neon, per
-  [DEPLOYMENT.md](DEPLOYMENT.md).
+  [DEPLOYMENT.md](DEPLOYMENT.md). This is the one phase left, and it is
+  being done by hand rather than by this assistant — see that doc's
+  checklist for the exact steps.

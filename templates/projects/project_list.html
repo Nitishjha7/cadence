@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Projects — Cadence{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Your projects</h1>
+
+{% if memberships %}
+<div class="grid gap-4 sm:grid-cols-2">
+    {% for membership in memberships %}
+    <a href="{% url 'tasks:board' project_pk=membership.project.pk %}"
+       class="block bg-white p-5 rounded shadow hover:shadow-md transition">
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-lg">{{ membership.project.name }}</h2>
+            <span class="text-xs uppercase text-gray-500">{{ membership.get_role_display }}</span>
+        </div>
+        <p class="text-sm text-gray-500 mt-1">{{ membership.project.key }}</p>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-gray-500">No projects yet. Ask a manager to add you as a member.</p>
+{% endif %}
+{% endblock %}

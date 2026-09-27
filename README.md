@@ -25,6 +25,21 @@
   <a href="docs/">Engineering notes</a>
 </p>
 
+<p align="center">
+  <strong>Live:</strong>
+  <a href="https://cadence-906520260355.asia-south1.run.app">cadence-906520260355.asia-south1.run.app</a>
+</p>
+
+<div align="center">
+
+| Role | Login | Password |
+|---|---|---|
+| Manager | `manager@cadence.demo` | `password` |
+| Contributor | `dev@cadence.demo` | `password` |
+| Viewer | `viewer@cadence.demo` | `password` |
+
+</div>
+
 ---
 
 ## What this is not
@@ -223,6 +238,18 @@ docs/         Architecture, setup, testing
 
 ---
 
+## Deployment
+
+| | |
+|---|---|
+| **Hosting** | Google Cloud Run (`asia-south1`), deployed straight from GitHub — push to `main`, Cloud Build rebuilds and redeploys automatically |
+| **Database** | Neon (managed Postgres, free tier, never sleeps for long enough to matter) |
+| **Cache/broker** | Upstash (managed Redis, free tier) — kept for local Celery parity; production doesn't run a standing worker |
+| **Scheduled job** | The nightly worklog snapshot that used to be a Celery Beat schedule is now a secret-protected HTTP endpoint, hit once a day by Cloud Scheduler — Cloud Run has no standing background-process mode, so this replaces Beat in production only |
+| **Cost** | $0/month, on Google Cloud's permanent Always Free tier (not a trial credit) |
+
+---
+
 ## Not built
 
 - **Drag-and-drop board** — looks impressive, teaches nothing, and costs
@@ -234,8 +261,6 @@ docs/         Architecture, setup, testing
 - **Time tracking** — estimates are enough for capacity; actuals are a
   separate product.
 - **Holiday calendar in capacity** — it assumes uniform working days.
-- **Not deployed** — the Compose stack is production-shaped; nothing is
-  hosted yet.
 
 ---
 

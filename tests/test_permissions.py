@@ -115,9 +115,13 @@ def test_viewer_gets_404_not_403_starting_a_sprint():
 
 
 # Views that legitimately don't take a project_pk (they list across
-# projects, or don't exist yet) are the only allowed exemptions here — a
-# new project-scoped view that forgets the mixin fails this test.
-EXEMPT_VIEW_NAMES = {"ProjectListView"}
+# projects, or are hit by something other than a logged-in browser) are
+# the only allowed exemptions here — a new project-scoped view that
+# forgets the mixin fails this test.
+EXEMPT_VIEW_NAMES = {
+    "ProjectListView",
+    "WriteWorklogsView",  # cron trigger, not project-scoped; see tests/test_cron_endpoint.py
+}
 
 
 def _iter_view_classes(resolver=None):

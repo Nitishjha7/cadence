@@ -18,6 +18,12 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 
+# Protects sprints:write_worklogs, the HTTP endpoint a scheduler (Cloud
+# Scheduler, cron, whatever) hits instead of a standing Celery beat
+# process. No default — an empty value means the endpoint accepts nothing,
+# rather than accepting any caller.
+CADENCE_CRON_SECRET = config("CADENCE_CRON_SECRET", default="")
+
 
 # Application definition
 

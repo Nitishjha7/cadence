@@ -1,14 +1,19 @@
 from collections import defaultdict
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib import messages
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import DetailView
 
 from projects.views_base import ProjectPermissionMixin
 from sprints.models import Sprint, TimeOff, WorkLog
 from sprints.services import SprintAlreadyStartedError, velocity
+from sprints.tasks import write_daily_worklogs_for_active_sprints
 
 
 class CapacityView(ProjectPermissionMixin, DetailView):
@@ -125,3 +130,26 @@ class SprintStartView(ProjectPermissionMixin, View):
         except SprintAlreadyStartedError as exc:
             messages.error(request, str(exc))
         return redirect("sprints:sprint_detail", project_pk=self.project.pk, sprint_pk=sprint.pk)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class WriteWorklogsView(View):
+    """
+    Triggers the nightly worklog snapshot over HTTP, for a scheduler that
+    can't run a management command directly (e.g. Cloud Scheduler hitting a
+    Cloud Run service — there's no standing Celery beat process there).
+
+    Protected by a shared secret in the X-Cron-Secret header, not by login
+    — the caller is a cron trigger, not a browser. CADENCE_CRON_SECRET has
+    no fallback default, same reasoning as SECRET_KEY: a misconfigured
+    deployment should fail loudly rather than quietly accept any caller.
+    """
+
+    def post(self, request, *args, **kwargs):
+        expected = settings.CADENCE_CRON_SECRET
+        provided = request.headers.get("X-Cron-Secret", "")
+        if not expected or provided != expected:
+            return HttpResponseForbidden("Invalid or missing cron secret.")
+
+        count = write_daily_worklogs_for_active_sprints()
+        return JsonResponse({"worklogs_written": count})

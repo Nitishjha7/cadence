@@ -14,11 +14,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# collectstatic needs SECRET_KEY/DATABASE_URL-shaped settings to import,
-# but doesn't touch the database — a build-time-only dummy value is fine
-# since the runtime container gets the real SECRET_KEY from Cloud Run env vars.
+# collectstatic imports settings.py, which reads SECRET_KEY/DATABASE_URL/
+# CELERY_BROKER_URL with no defaults — it never connects to either service,
+# so build-time-only dummy values are fine; the runtime container gets the
+# real ones from Cloud Run env vars.
 RUN SECRET_KEY=build-time-only-not-used-at-runtime \
     DATABASE_URL=postgresql://build:time@localhost:5432/build \
+    CELERY_BROKER_URL=redis://localhost:6379/0 \
     python manage.py collectstatic --noinput
 
 EXPOSE 8000
